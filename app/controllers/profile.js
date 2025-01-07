@@ -254,6 +254,141 @@ exports.createProfileLeader = async (req, res) => {
   }
 };
 
+
+
+exports.createProfileConselingWithSos = async (req, res) => {
+  try {
+    const {
+      _id,
+      lastname,
+      firstname,
+      email,
+      mobileNumber, 
+      dob,
+      education,
+      proffession,
+      familymembers = [],
+      languages = [],
+      movies = [ ],
+      music = [],
+      books = [],
+      dance = [],
+      sports = [],
+      otherintrests = [],
+      location,
+      // Add the image URLs to be saved in the database
+      // id_card,
+      // address_proof,
+      // certificate_ngo_or_institute,
+    } = req.body;
+
+    
+    
+    if (!_id) {
+      return res.status(401).json({ status: false, message: "Please provide all the details" });
+    }
+
+    const existingCustomerKey = Array.from(leaderCustomerMap.keys()).find(
+      key => key.startsWith(`${firstname}_${lastname}`)
+    );
+
+    if (existingCustomerKey) {
+      return res.status(400).json({ status: false, message: "Customer with the same name already registered" });
+    }
+
+    const razorpayInstanceLocal = new Razorpay({
+      key_id: 'rzp_test_1d8Uz0Rqn101Hj',
+      key_secret: 'DREkz3zAKcStej7cslGOdYLy',
+    });
+
+    let razorpayCustomer;
+
+    try {
+      const newCustomer = await razorpayInstanceLocal.customers.create({
+        name: `${firstname} ${lastname}`,
+        contact: mobileNumber,
+      });
+      razorpayCustomer = newCustomer.id;
+      console.log("newcustomer", newCustomer);
+
+      // Store the customer_id in the mapping for future use
+      leaderCustomerMap.set(`${firstname}_${lastname}_${mobileNumber}`, razorpayCustomer);
+    } catch (error) {
+      if (error.statusCode === 400 && error.error.code === 'BAD_REQUEST_ERROR') {
+        console.log("Customer already exists:", error.error.description);
+        razorpayCustomer = error.error.description;
+      } else {
+        console.error("Error creating Razorpay customer:", error);
+        return res.status(500).json({ status: false, message: "Error creating Razorpay customer" });
+      }
+    }
+
+    const randomNumber = Math.floor(Math.random() * 1000000);
+    const profileID = `Leader${randomNumber}`;
+    console.log(profileID);
+
+    const check = await leaderUsermaster.updateOne(
+      { _id: _id },
+      {
+        $set: {
+          firstname: firstname,
+          lastname: lastname,
+          email: email,
+          dob: dob,
+          education: education,
+          proffession: proffession,
+          profileID: profileID,
+          location: location,
+          customer_Id: razorpayCustomer,
+          id_card: {
+            front: req.originalImagePaths?.["id_card.front"] ,// Directly using the uploaded URL
+            back: req.originalImagePaths?.["id_card.back"]   // Directly using the uploaded URL
+          },
+          address_proof: {
+            front: req.originalImagePaths?.["address_proof.front"], // Directly using the uploaded URL
+            back: req.originalImagePaths?.["address_proof.back"]  // Directly using the uploaded URL
+          },
+          certificate_ngo_or_institute: {
+            front: req.originalImagePaths?.["certificate_ngo_or_institute.front"], // Directly using the uploaded URL
+            back: req.originalImagePaths?.["certificate_ngo_or_institute.back"]  // Directly using the uploaded URL
+          },
+        },
+      },
+      { new: true }
+    );
+
+    const check1 = await leaderUsermaster.findOneAndUpdate(
+      { _id: _id },
+      {
+        $push: {
+          familymembers: { $each: familymembers   || []},
+          languages: { $each: languages  || []},
+          "areaofintrest.movies": { $each: movies || [] },
+          "areaofintrest.music": { $each: music  || [ ]},
+          "areaofintrest.books": { $each: books || [] },
+          "areaofintrest.dance": { $each: dance  || []},
+          "areaofintrest.sports": { $each: sports  || []},
+          "areaofintrest.otherintrests": { $each: otherintrests || [] },
+        },
+      }
+    );
+
+    if (check && check1) {
+      await leaderUsermaster.findOneAndUpdate({ _id: _id }, { $set: { profile: true } });
+      const response = await leaderUsermaster.findOne({ _id: _id });
+      return res.status(200).json({ status: true, message: "Profile created successfully", response });
+    } else {
+      return res.status(401).json({ status: false, message: "Could not create a profile, try later" });
+    }
+  } catch (err) {
+    console.log(err);
+    return res.status(400).send({ Status: 'Error', message: 'Something went wrong' });
+  }
+};
+
+
+
+
 exports.createProfileCitizenimg = async (req, res) => {
   try {
       const { _id } = req.body;

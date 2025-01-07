@@ -3549,99 +3549,135 @@ socialMetaTagInfo: {socialTitle: 'Check out this link!',socialDescription: 'This
 
 exports.createSos = async (req, res) => {
   try {
-      const { citizen_id,latitude, longitude,text} = req.body;
+    const { citizen_id, latitude, longitude, text , types_of_danger, local_Police_Helpline } = req.body;
+
+
+
+    console.log("data" , types_of_danger);
+    const senderLocation = {
+      latitude: parseFloat(latitude),
+      longitude: parseFloat(longitude),
+    };
+    
+    const citizenObjectId = new mongoose.Types.ObjectId(citizen_id);
+    if (!mongoose.Types.ObjectId.isValid(citizenObjectId)) {
+      return res.status(400).json({ status: false, message: "Invalid citizen_id format" });
+    }
+
+    
+
+
+    const partner2 = await citiZenUsermaster.findOne(
+      { _id: citizenObjectId },
+      { firstname: 1, mobilenumber: 1, _id: 1, profile_img: 1, token: 1 }
+    );
+    
+    
+    const names = partner2.firstname;
+    const profile_img = partner2.profile_img;
+    
+    console.log(names, profile_img);
+    
+    const partnerData = await locations
+      .find({
+        "location.latitude": {
+          $gte: senderLocation.latitude - 0.045,
+          $lte: senderLocation.latitude + 0.045,
+        },
+        "location.longitude": {
+          $gte: senderLocation.longitude - 0.045,
+          $lte: senderLocation.longitude + 0.045,
+        },
+        user_id: { $ne: "" },
+      })
+      .sort({ _id: -1 });
+
+
+      console.log("partner Data" ,  partnerData);
       
-  const senderLocation = {
-              latitude: parseFloat(latitude), 
-              longitude: parseFloat(longitude), 
-            };
-            const partner2=await citiZenUsermaster.findOne( { _id: citizen_id  },
-              { firstname: 1, mobilenumber: 1, _id: 1, profile_img: 1,token:1 })
-              const names=partner2.firstname
-              const profile_img=partner2.profile_img
-              console.log(names,profile_img)
-  const partnerData = await locations.find({
-              "location.latitude": {
-                $gte: senderLocation.latitude - 0.045,
-                $lte: senderLocation.latitude + 0.045,
-              },
-              "location.longitude": {
-                $gte: senderLocation.longitude - 0.045,
-                $lte: senderLocation.longitude + 0.045,
-              },
-              user_id: { $ne: "" } 
-            }).sort({ _id: -1 });
-            const partnerDataUserIds = partnerData.map(partner => partner.user_id);
-            const randomNumber = Math.floor(Math.random() * 1000000)
-            const profileID = `sos${randomNumber}`;
-            console.log(profileID);
-            const tokens = partnerData.map((partner) => partner.user_id.token);
-            console.log(tokens)
-            const notification = {
-              title: 'ShePower',
-              body: `${names} is in Danger`,
-              icon:profile_img
-            };
-            const data={
-              page_name:'Notification'
-            }
-           
-            const response = await admin.messaging().sendToDevice(tokens, { notification,data });
-            console.log(response)
-          
-            let result
-      if (req.file) {
-        const attachment=req.file.filename
-      console.log(attachment)
-        const sosSchemas = new sosSchema({
-          user_id: partner2,
-          location: {
-            latitude: latitude,
-            longitude: longitude,
-          },
-          attachment:attachment,
-          text: text,
-          leaders:partnerDataUserIds,
-          sosId:profileID,
-          notificationCount:response.successCount
-        });
-         result = await sosSchemas.save();
-        console.log(result)
-      }else{
-          const sosSchemas = new sosSchema({
-            user_id: partner2,
-            location: {
-              latitude: latitude,
-              longitude: longitude,
-            },
-            text: text,
-            leaders:partnerDataUserIds,
-            sosId:profileID,
-            notificationCount:response.successCount
-          });
-           result = await sosSchemas.save();
-          console.log(result)
-      }
-      const notificationsToInsert = partnerData.map((partner) => ({
-        sosNotification: notification,
-        user_id: partner.user_id._id,
-        sosId: result.sosId,
-        closedorNot:result.closed
-      }));
-      const notifyme=notifications.insertMany(notificationsToInsert)
-      console.log(notifyme)
-      return res.status(200).json({
-        status: true,
-        message: "Sos created successfully",
-        partnerData,
-        result,
-        response
+
+    const partnerDataUserIds = partnerData.map((partner) => partner.user_id);
+    const randomNumber = Math.floor(Math.random() * 1000000);
+    const profileID = `sos${randomNumber}`;
+    console.log("{{{{{{{{{{{{{{",profileID);
+
+    const tokens = partnerData.map((partner) => partner.user_id._id);
+    console.log("{{{{{{{{{{{{{ tokes",tokens);
+
+    
+
+    const notification = {
+      title: "ShePower",
+      body: `${names} is in Danger`,
+      icon: profile_img,
+    };
+    const data = {
+      page_name: "Notification",
+    };
+
+    // const response = await admin
+    //   .messaging()
+    //   .sendToDevice(tokens, { notification, data });
+
+      // console.log("{{{{{{{{{{{{{{{{{{{{{{",response);
+    let result;
+    if (req.file) {
+      const attachment = req.file.filename;
+      console.log(attachment);
+      const sosSchemas = new sosSchema({
+        user_id: partner2,
+        location: {
+          latitude: latitude,
+          longitude: longitude,
+        },
+        attachment: attachment,
+        text: text,
+        leaders: partnerDataUserIds,
+        sosId: profileID,
+        // notificationCount: response.successCount,
+        types_of_danger: types_of_danger,
+        local_Police_Helpline: local_Police_Helpline,
       });
-          } 
-        catch (err) {
-            console.log('Error:', err);
-            return res.status(500).json({ status: false, message: 'Something went wrong' });
-          }
+      result = await sosSchemas.save();
+      console.log(result);
+    } else {
+      const sosSchemas = new sosSchema({
+        user_id: partner2,
+        location: {
+          latitude: latitude,
+          longitude: longitude,
+        },
+        text: text,
+        leaders: partnerDataUserIds,
+        sosId: profileID,
+        types_of_danger: types_of_danger,
+        local_Police_Helpline: local_Police_Helpline,
+        // notificationCount: response.successCount,
+      });
+      result = await sosSchemas.save();
+      console.log(result);
+    }
+    const notificationsToInsert = partnerData.map((partner) => ({
+      sosNotification: notification,
+      user_id: partner.user_id._id,
+      sosId: result.sosId,
+      closedorNot: result.closed,
+    }));
+    const notifyme = notifications.insertMany(notificationsToInsert);
+    console.log(notifyme);
+    return res.status(200).json({
+      status: true,
+      message: "Sos created successfully",
+      partnerData,
+      result,
+      // response,
+    });
+  } catch (err) {
+    console.log("Error:", err);
+    return res
+      .status(500)
+      .json({ status: false, message: "Something went wrong"  , err});
+  }
 };
 
 

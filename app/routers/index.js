@@ -13,6 +13,7 @@ const eventController=require('../controllers/event')
 const sosController=require('../controllers/sos')
 const weshareSchema=require('../controllers/weshare')
 //middlewares
+const {upload , compresssosProfileImg } = require('../middleware/s3Bucket')
 const { uploadProfile, compressProfileImg }=require('../middleware/uploadProfie')
 const {postUpload,compressedPostUpload}=require('../middleware/uploadPost');
 const {attachment,compressedattachment}=require('../middleware/uploadAttachment');
@@ -34,6 +35,19 @@ route.post('/findleaders',authMiddleware,regisController.findleaders)
 //profilecontroller
 route.put('/createProfileCitizen',authMiddleware,profileController.createProfileCitizen)
 route.put('/createProfileLeader',authMiddleware,profileController.createProfileLeader)
+route.put(
+    '/createProfileConselingWithSos', 
+    upload.fields([
+      { name: 'id_card.front', maxCount: 1 },
+      { name: 'id_card.back', maxCount: 1 },
+      { name: 'address_proof.front', maxCount: 1 },
+      { name: 'address_proof.back', maxCount: 1 },
+      { name: 'certificate_ngo_or_institute.front', maxCount: 1 },
+      { name: 'certificate_ngo_or_institute.back', maxCount: 1 },
+    ]),
+    compresssosProfileImg, 
+    profileController.createProfileConselingWithSos 
+  );
 route.put('/createProfileCitizenimg',authMiddleware,uploadProfile.single('profile_img'),compressProfileImg,profileController.createProfileCitizenimg)
 route.put('/createProfileLeaderimg',authMiddleware,uploadProfile.single('profile_img'),compressProfileImg,profileController.createProfileLeaderimg)
 route.put('/updateProfileCitizen',authMiddleware,profileController.updateProfileCitizen)

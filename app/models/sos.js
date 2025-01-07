@@ -37,6 +37,7 @@ const sosSchema = new Schema({
                   type:Boolean,
                   default:false
                 },
+
                 accptedleader:{
                   type:Array ,
                   default:[]
@@ -44,7 +45,13 @@ const sosSchema = new Schema({
                 notificationCount:{
                   type:Number,
                 },
-
+                types_of_danger: {
+                  type: [String]  
+                },
+                local_Police_Helpline: {
+                  type: [String]  
+              }
+                
               },{ timestamps: true });
 
 module.exports = mongoose.model('sos', sosSchema, 'sos');
